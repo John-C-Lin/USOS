@@ -4,121 +4,46 @@
 # Ben Fasoli
 
 print(paste("Starting time:",date()))
-SITEs <- c("WBB","MtnMet","Syracuse","Hawthorne","Copperview","Herriman","RosePark","InlandPort","LakePark","TechCenter")
-SITEs <- c(SITEs,"BryantMiddle","TheShop","EastHigh","Westminster","MtWire","UintahElementary") # these sites represent retroreflectors installed by NIST for dual-comb long-path instrument
-for(ss in 1:length(SITEs)){
-  SITE <- SITEs[ss]
-  print(paste("--------------- SITE:",SITE,"---------------"))
 
-  # User inputs ------------------------------------------------------------------
-  project <- 'STILT_USOS'
-  stilt_wd <- file.path('/uufs/chpc.utah.edu/common/home/u0791084/PROJECTS/USOS', project)
-  #output_wd <- file.path(stilt_wd, 'out') 
-  output_wd <- file.path('/uufs/chpc.utah.edu/common/home/u0791084/lin-group24/jcl/STILT_USOS_output',SITE) 
-  lib.loc <- .libPaths()[1]
+# User inputs ------------------------------------------------------------------
+project <- 'STILT_USOS_Aircraft'
+stilt_wd <- file.path('/uufs/chpc.utah.edu/common/home/u0791084/PROJECTS/USOS/USOS_Aircraft', project)
+output_wd <- file.path(stilt_wd, 'out')
+lib.loc <- .libPaths()[1]
 
 # Parallel simulation settings
-n_cores <- 3
-n_nodes <- 1
+n_cores <- 5
+n_nodes <- 2
+processes_per_node <- n_cores
 slurm   <- n_nodes > 1
 slurm_options <- list(
-  time      = '5:00:00',
+  time      = '10:00:00',
   account   = 'lin-np',
   partition = 'lin-np'
 )
 
-# Simulation timing, yyyy-mm-dd HH:MM:SS (UTC)
-YEARs <- (2024:2024)
-#HHs <-  as.character(c(13:23,"00","01")) # subset of hours to simulate [UTC]
-#HHs <-  as.character(c("00","06","12","18")) # subset of hours to simulate [UTC]
-HHs <-  formatC(0:23,width=2,flag="0") # subset of hours to simulate [UTC]
-run_times <- NULL
-for(yy in 1:length(YEARs)){
-  YEAR <- YEARs[yy]
-  t_start <- paste0(YEAR,'-07-01 00:00:00')
-  t_end   <- paste0(YEAR,'-08-31 23:00:00')
-  run_times.sub <- seq(from = as.POSIXct(t_start, tz = 'UTC'),
-                       to   = as.POSIXct(t_end, tz = 'UTC'), by   = 'hour')
-  run_times <- c(run_times,run_times.sub)
-} # for(yy in 1:length(YEARs)){
-run_times <- as.POSIXct(as.numeric(run_times), tz='UTC', origin="1970-01-01")
-run_times <- run_times[format(run_times,format="%H")%in%HHs]
+#Read in the selected receptors from "determine_aircraft_receptors.r" 
+#tmp <- readRDS("/uufs/chpc.utah.edu/common/home/u0791084/PROJECTS/UWFPS_2017/UWFPS_Aircraft_Data/UWFPS2017_selected_receptors.rds")
+tmp <- readRDS("/uufs/chpc.utah.edu/common/home/u0791084/PROJECTS/USOS/USOS_Aircraft/USOS_selected_receptors.rds")
+tmp <- tmp[,c("Time_UTC","Latitude","Longitude","ALTAGL")]
+colnames(tmp) <- c("run_time","lati","long","zagl")
+tmp[,"zagl"] <- round(tmp[,"zagl"])
+attributes(tmp[,"run_time"])$tzone <- "UTC"
+receptors <- tmp
+#receptors <- receptors[c(2000,3000,4000,5000),]
 
-# Receptor location(s)
-# lati <- 40.5; long <- -112.0; zagl <- 5
-if(SITE=="WBB"){
-  lati <- 40.7634; long <- -111.848; zagl <- 36  
-  receptors <- expand.grid(run_time = run_times, lati = lati, long = long, zagl = zagl, KEEP.OUT.ATTRS = F, stringsAsFactors = F)
-} # if(SITE=="WBB"){
-if(SITE=="MtnMet"){
-  lati <- 40.7667; long <- -111.8284; zagl <- 4
-  receptors <- expand.grid(run_time = run_times, lati = lati, long = long, zagl = zagl, KEEP.OUT.ATTRS = F, stringsAsFactors = F)
-} # if(SITE=="MtnMet"){
-if(SITE=="Syracuse"){
-  lati <- 41.089; long <- -112.119; zagl <- 4
-  receptors <- expand.grid(run_time = run_times, lati = lati, long = long, zagl = zagl, KEEP.OUT.ATTRS = F, stringsAsFactors = F)
-} # if(SITE=="MtnMet"){
-if(SITE=="Hawthorne"){
-  lati <- 40.734477; long <- -111.872172; zagl <- 4    # Hawthorne Elementary School UDAQ monitoring site; inlet height guestimated by FRU height in Bares et al. [2019]
-  receptors <- expand.grid(run_time = run_times, lati = lati, long = long, zagl = zagl, KEEP.OUT.ATTRS = F, stringsAsFactors = F)
-} # if(SITE=="Hawthorne"){
-if(SITE=="Copperview"){
-  lati <- 40.59794; long <- -111.894; zagl <- 4    
-  receptors <- expand.grid(run_time = run_times, lati = lati, long = long, zagl = zagl, KEEP.OUT.ATTRS = F, stringsAsFactors = F)
-} # if(SITE=="Copperview"){
-if(SITE=="Herriman"){
-  lati <- 40.49639; long <- -112.036; zagl <- 4    
-  receptors <- expand.grid(run_time = run_times, lati = lati, long = long, zagl = zagl, KEEP.OUT.ATTRS = F, stringsAsFactors = F)
-} # if(SITE=="Herriman"){
-if(SITE=="RosePark"){
-  lati <- 40.79553; long <- -111.931; zagl <- 4    
-  receptors <- expand.grid(run_time = run_times, lati = lati, long = long, zagl = zagl, KEEP.OUT.ATTRS = F, stringsAsFactors = F)
-} # if(SITE=="RosePark"){
-if(SITE=="InlandPort"){
-  lati <- 40.80791; long <- -112.088; zagl <- 4    
-  receptors <- expand.grid(run_time = run_times, lati = lati, long = long, zagl = zagl, KEEP.OUT.ATTRS = F, stringsAsFactors = F)
-} # if(SITE=="InlandPort"){
-if(SITE=="LakePark"){
-  lati <- 40.7099; long <- -112.009; zagl <- 4    
-  receptors <- expand.grid(run_time = run_times, lati = lati, long = long, zagl = zagl, KEEP.OUT.ATTRS = F, stringsAsFactors = F)
-} # if(SITE=="LakePark"){
-if(SITE=="TechCenter"){
-  lati <- 40.77715; long <- -111.946; zagl <- 11   
-  receptors <- expand.grid(run_time = run_times, lati = lati, long = long, zagl = zagl, KEEP.OUT.ATTRS = F, stringsAsFactors = F)
-} # if(SITE=="TechCenter"){
-
-# the following sites are for the retroreflectors installed by NIST for dual-comb long-path instrument
-if(SITE=="BryantMiddle"){
-  lati <- 40.76815; long <- -111.86923; zagl <- 15   
-  receptors <- expand.grid(run_time = run_times, lati = lati, long = long, zagl = zagl, KEEP.OUT.ATTRS = F, stringsAsFactors = F)
-} # if(SITE=="BryantMiddle"){
-if(SITE=="TheShop"){
-  lati <- 40.7605; long <- -111.88098; zagl <- 15   
-  receptors <- expand.grid(run_time = run_times, lati = lati, long = long, zagl = zagl, KEEP.OUT.ATTRS = F, stringsAsFactors = F)
-} # if(SITE=="TheShop"){
-if(SITE=="EastHigh"){
-  lati <- 40.75042; long <- -111.85516; zagl <- 10   
-  receptors <- expand.grid(run_time = run_times, lati = lati, long = long, zagl = zagl, KEEP.OUT.ATTRS = F, stringsAsFactors = F)
-} # if(SITE=="EastHigh"){
-if(SITE=="Westminster"){
-  lati <- 40.73258; long <- -111.85488; zagl <- 15   
-  receptors <- expand.grid(run_time = run_times, lati = lati, long = long, zagl = zagl, KEEP.OUT.ATTRS = F, stringsAsFactors = F)
-} # if(SITE=="Westminster"){
-if(SITE=="MtWire"){
-  lati <- 40.7706; long <- -111.79834; zagl <- 5   
-  receptors <- expand.grid(run_time = run_times, lati = lati, long = long, zagl = zagl, KEEP.OUT.ATTRS = F, stringsAsFactors = F)
-} # if(SITE=="MtWire"){
-if(SITE=="UintahElementary"){
-  lati <- 40.74201; long <- -111.846; zagl <- 10   
-  receptors <- expand.grid(run_time = run_times, lati = lati, long = long, zagl = zagl, KEEP.OUT.ATTRS = F, stringsAsFactors = F)
-} # if(SITE=="UintahElementary"){
-
-#only run those receptors when previous runs did NOT produce footprints
+#only run those receptors when previous runs did NOT produce trajectories
 xfiles <- list.files(path=paste0(output_wd,"/footprints/"),full.names=FALSE)
+xfiles.p <- list.files(path=paste0(output_wd,"/particles/"),full.names=FALSE)
 YYYYMMDDHHmm <- format(receptors$run_time,format="%Y%m%d%H%M")
 labels <- paste0(YYYYMMDDHHmm,"_",receptors$long,"_",receptors$lati,"_",receptors$zagl,"_foot.nc")
+labels.p <- paste0(YYYYMMDDHHmm,"_",receptors$long,"_",receptors$lati,"_",receptors$zagl,"_traj.rds")
 sel <- labels%in%xfiles
-receptors <- receptors[!sel,]
+sel.p <- labels.p%in%xfiles.p
+print(paste(sum(sel.p),"out of",nrow(receptors),"has trajectories"))
+print(paste(sum(sel),"out of",nrow(receptors),"has footprints"))
+#receptors <- receptors[!sel,]; print(paste("running with",nrow(receptors),"receptors that are missing footprints:"))
+receptors <- receptors[!sel.p,]; print(paste("running with",nrow(receptors),"receptors that are missing trajectories:"))
 
 # Footprint grid settings, must set at least xmn, xmx, ymn, ymx below
 hnf_plume <- T
@@ -126,27 +51,33 @@ projection <- '+proj=longlat'
 smooth_factor <- 1
 time_integrate <- F
 #xmn <- NA; xmx <- NA; ymn <- NA; ymx <- NA
-#if(SITE=="Hawthorne") {xmn <- -112.36; xmx <- -111.7; ymn <- 40.17; ymx <- 41.4}
-#if(TRUE) {xmn <- -112.36; xmx <- -111.7; ymn <- 40.17; ymx <- 41.4}    # SLV 
-if(TRUE) {xmn <- -113.1; xmx <- -111.7; ymn <- 40; ymx <- 41.75}     # SLV + GSL + Utah Valley
+#!!!!! need to adjust this domain depending on aircraft location !!!!!#
+#if(TRUE) {xmn <- -114.5; xmx <- -109; ymn <- 37; ymx <- 42}   # footprint domain from UWFPS aircraft STILT runs
+#if(TRUE) {xmn <- -113.1; xmx <- -111.7; ymn <- 40; ymx <- 41.75}     # SLV + GSL + Utah Valley
+if(TRUE) {xmn <- -114.5; xmx <- -108.6; ymn <- 39; ymx <- 42}     # USOS domain
 xres <- 0.01
 yres <- xres
 
 # Meteorological data input
 met_path           <- '/uufs/chpc.utah.edu/common/home/lin-group21/hrrr/hrrr/'
-# met_file_format    <- '%Y%m%d.%Hz.hrrra'
+#met_file_format    <- '%Y%m%d.%Hz.hrrra'
 met_file_format <- '%Y%m%d_%H'
-met_subgrid_buffer <- 0.2
-met_subgrid_enable <- TRUE 
+n_hours_per_met_file <- 6
+#met_subgrid_buffer <- 0.2
+met_subgrid_buffer <- 0.5
+met_subgrid_enable <- F
+#met_subgrid_enable <- TRUE
+print(paste("met_subgrid_enable:",met_subgrid_enable))
 met_subgrid_levels <- NA
 n_met_min          <- 1
 
 # Model control
 n_hours       <- -24
+#numpar        <- 1000
 numpar        <- 200
 rm_dat        <- T
-run_foot      <- TRUE
-run_trajec    <- TRUE 
+run_foot      <- T
+run_trajec    <- T
 simulation_id <- NA
 timeout       <- 3600
 varsiwant     <- c('time', 'indx', 'long', 'lati', 'zagl', 'foot', 'mlht', 'dens',
@@ -157,7 +88,7 @@ capemin     <- -1
 cmass       <- 0
 conage      <- 48
 cpack       <- 1
-delt        <- 0
+delt        <- 1
 dxf         <- 1
 dyf         <- 1
 dzf         <- 0.01
@@ -273,6 +204,7 @@ stilt_apply(FUN = simulation_step,
             slurm_options = slurm_options,
             n_cores = n_cores,
             n_nodes = n_nodes,
+            processes_per_node = processes_per_node,
             before_footprint = list(before_footprint),
             before_trajec = list(before_trajec),
             lib.loc = lib.loc,
@@ -324,6 +256,7 @@ stilt_apply(FUN = simulation_step,
             met_subgrid_levels = met_subgrid_levels,
             mgmin = mgmin,
             n_hours = n_hours,
+            n_hours_per_met_file = n_hours_per_met_file,
             n_met_min = n_met_min,
             ncycl = ncycl,
             ndump = ndump,
@@ -384,7 +317,3 @@ stilt_apply(FUN = simulation_step,
             ziscale = ziscale,
             z_top = z_top,
             zcoruverr = zcoruverr)
-
-print(paste("Ending time:",date()))
-
-} # for(ss in 1:length(SITEs)){
